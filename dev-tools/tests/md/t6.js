@@ -1,0 +1,30 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch({args:['--autoplay-policy=no-user-gesture-required']});const p=await b.newPage({viewport:{width:1280,height:800}});
+const errs=[];p.on('pageerror',e=>errs.push('PE '+e.message));const R=[];const ok=(n,c,d)=>R.push((c?'PASS ':'FAIL ')+n+' '+(d||''));
+await p.goto('http://localhost:8766/test.html');await p.evaluate(()=>localStorage.setItem('fe:introSeen','1'));
+await p.goto('http://localhost:8766/test.html#moon-doc');await p.reload();await p.waitForTimeout(2000);
+ok('no autoplay',await p.evaluate(()=>FE_MDX._s().na.paused));
+await p.click('[data-a=begin]');await p.waitForTimeout(2000);
+let s=await p.evaluate(()=>{const S=FE_MDX._s();return {p:!S.na.paused,m:!S.mu.paused,d:Math.abs(S.na.currentTime-S.mu.currentTime)}});ok('narration+music playing in sync',s.p&&s.m&&s.d<0.4,JSON.stringify(s));
+await p.fill('.md-mv','0').catch(()=>{});await p.evaluate(()=>{const e=document.querySelector('.md-mv');e.value=0.2;e.dispatchEvent(new Event('input',{bubbles:true}));const n=document.querySelector('.md-nv');n.value=0.8;n.dispatchEvent(new Event('input',{bubbles:true}))});
+await p.waitForTimeout(300);s=await p.evaluate(()=>{const S=FE_MDX._s();return [S.na.volume,S.mu.volume]});ok('independent volumes',Math.abs(s[0]-0.8)<0.01&&s[1]<=0.2+1e-6&&s[1]>0,JSON.stringify(s));
+await p.selectOption('.md-rate','1.5');s=await p.evaluate(()=>{const S=FE_MDX._s();return [S.na.playbackRate,S.mu.playbackRate]});ok('speed',s[0]===1.5&&s[1]===1.5);
+await p.selectOption('.md-rate','1');
+await p.keyboard.press('t');await p.waitForTimeout(300);
+await p.click('.md-trl button[data-i="5"]');await p.waitForTimeout(500);s=await p.evaluate(()=>{const S=FE_MDX._s();return [S.na.currentTime,S.cue,document.querySelector('.md-trl button.on')?.dataset.i]});ok('transcript seek+highlight',s[0]>32&&s[0]<34&&s[1]===5&&s[2]==='5',JSON.stringify(s));
+await p.selectOption('.md-ccs','off');await p.waitForTimeout(300);ok('cc off',await p.evaluate(()=>document.querySelector('.md-cap').hidden));await p.selectOption('.md-ccs','en');
+await p.keyboard.press('Space');await p.waitForTimeout(300);ok('space pauses',await p.evaluate(()=>FE_MDX._s().na.paused));
+await p.keyboard.press('Space');await p.waitForTimeout(300);
+// near end of ch1 -> auto advance
+await p.evaluate(()=>{FE_MDX._s().na.currentTime=47.6});await p.waitForTimeout(4500);
+s=await p.evaluate(()=>({h:location.hash,ch:FE_MDX._s().ch,pl:!FE_MDX._s().na.paused}));ok('auto-advance to ch2',s.h==='#moon-doc/2'&&s.ch===1&&s.pl,JSON.stringify(s));
+await p.keyboard.press('n');await p.waitForTimeout(1500);ok('N next',await p.evaluate(()=>location.hash)==='#moon-doc/3');
+await p.keyboard.press('p');await p.waitForTimeout(1500);ok('P prev (start of chapter → previous)',await p.evaluate(()=>location.hash)==='#moon-doc/2');
+await p.evaluate(()=>location.hash='moon-doc/6');await p.waitForTimeout(1500);await p.evaluate(()=>{const S=FE_MDX._s();S.na.play();S.na.currentTime=79});await p.waitForTimeout(3000);
+s=await p.evaluate(()=>({end:!document.querySelector('.md-intro').hidden,txt:document.querySelector('.md-intro').innerText.slice(0,40),mu:FE_MDX._s().mu.paused}));ok('end screen',s.end,JSON.stringify(s));
+// hotspot drawer pauses
+await p.evaluate(()=>location.hash='moon-doc/3');await p.waitForTimeout(1200);await p.evaluate(()=>{const S=FE_MDX._s();S.na.play();S.na.currentTime=17});await p.waitForTimeout(1200);
+await p.click('.md-pin',{force:true});await p.waitForTimeout(400);s=await p.evaluate(()=>({paused:FE_MDX._s().na.paused,dr:!document.querySelector('.md-drawer').hidden,name:document.querySelector('.md-dr h3')?.textContent,fate:document.querySelector('.md-dr .md-fate')?.textContent}));ok('pin opens panel and pauses',s.paused&&s.dr,JSON.stringify(s));
+await p.click('[data-a=dresume]');await p.waitForTimeout(500);ok('resume',await p.evaluate(()=>!FE_MDX._s().na.paused));
+await p.keyboard.press('Escape');await p.waitForTimeout(800);ok('Esc exits to #moon',await p.evaluate(()=>location.hash==='#moon'&&!document.getElementById('md')));
+console.log(R.join('\n'));console.log(errs.join('\n')||'no errors');await b.close();})();

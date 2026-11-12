@@ -1,0 +1,21 @@
+const {chromium}=require('playwright');
+const lang=process.argv[2], W=+process.argv[3], H=+process.argv[4], tag=process.argv[5];
+(async()=>{
+const b=await chromium.launch({args:['--use-gl=swiftshader','--autoplay-policy=no-user-gesture-required']});
+const p=await b.newPage({viewport:{width:W,height:H},isMobile:W<700,hasTouch:W<700});
+const errs=[];p.on('pageerror',e=>errs.push('PE '+e.message));
+await p.goto('http://localhost:8766/test.html#moon');await p.evaluate(l=>{localStorage.setItem('fe:introSeen','1');localStorage.setItem('fe:lang',l)},lang);
+await p.reload();await p.waitForTimeout(1500);
+await p.locator('.md-entry').scrollIntoViewIfNeeded();await p.waitForTimeout(400);await p.screenshot({path:`/tmp/claude-0/sheet/v_${tag}_entry.png`});
+await p.goto('http://localhost:8766/test.html#moon-doc');await p.waitForTimeout(2000);await p.screenshot({path:`/tmp/claude-0/sheet/v_${tag}_intro.png`});
+await p.click('[data-a=begin]');await p.waitForTimeout(1500);
+await p.evaluate(()=>{FE_MDX._s().na.currentTime=43.5});await p.waitForTimeout(1500);
+await p.screenshot({path:`/tmp/claude-0/sheet/v_${tag}_play.png`});
+await p.click('.md-row [data-a=tr]');await p.waitForTimeout(800);await p.screenshot({path:`/tmp/claude-0/sheet/v_${tag}_tr.png`});
+await p.click('.md-chip >> nth=0');await p.waitForTimeout(600);await p.screenshot({path:`/tmp/claude-0/sheet/v_${tag}_dr.png`});
+await p.click('[data-a=dclose]');
+await p.evaluate(()=>location.hash='moon-doc/archive');await p.waitForTimeout(1000);await p.screenshot({path:`/tmp/claude-0/sheet/v_${tag}_ar.png`});
+await p.evaluate(()=>location.hash='moon-doc/sources');await p.waitForTimeout(1000);await p.screenshot({path:`/tmp/claude-0/sheet/v_${tag}_src.png`});
+const ov=await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth);console.log('hoverflow',ov);
+const raw=await p.evaluate(()=>document.body.innerText.match(/\b(md|hw)_[a-z_0-9]+\b/g));console.log('RAW',raw);
+console.log(errs.join('\n'));await b.close();})();
